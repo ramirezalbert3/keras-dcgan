@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers import Conv2D, Conv2DTranspose, Reshape
 from keras.layers import Flatten, BatchNormalization, Dense, Activation
 from keras.layers.advanced_activations import LeakyReLU
@@ -22,7 +22,7 @@ def load_dataset(batch_size):
     dataset_generator = ImageDataGenerator()
     (x_train, y_train), _ = mnist.load_data()
     # Reduce training data, keep only X batches per epoch
-    batches = 20
+    batches = 50
     x_train = x_train[:batch_size*batches, :, :]
     y_train = y_train[:batch_size*batches]
 
@@ -125,7 +125,7 @@ def save_generated_images(generated_images, epoch, batch_number):
         ax1 = plt.subplot(gs1[i])
         ax1.set_aspect('equal')
         image = np.squeeze(generated_images[i, :, :, :])  # drop the dim when only 1-channel (28, 28, 1) to (28, 28)
-        fig = plt.imshow(image.astype(np.float))
+        fig = plt.imshow(image.astype(np.float), cmap='gray')
         plt.axis('off')
         fig.axes.get_xaxis().set_visible(False)
         fig.axes.get_yaxis().set_visible(False)
@@ -143,8 +143,10 @@ def save_generated_images(generated_images, epoch, batch_number):
 def train_dcgan(batch_size, epochs, image_shape):
     # Build the adversarial model that consists in the generator output
     # connected to the discriminator
-    generator = construct_generator()
-    discriminator = construct_discriminator(image_shape)
+    # generator = construct_generator()
+    # discriminator = construct_discriminator(image_shape)
+    generator = load_model('models/generator.hdf5')
+    discriminator = load_model('models/discriminator.hdf5')
 
     gan = Sequential()
     # Only false for the adversarial model
@@ -164,7 +166,7 @@ def train_dcgan(batch_size, epochs, image_shape):
 
     # Variables that will be used to plot the losses from the discriminator and
     # the adversarial models
-    adversarial_loss = np.empty(shape=1)
+    generator_loss = np.empty(shape=1)
     discriminator_loss = np.empty(shape=1)
     batches = np.empty(shape=1)
 
@@ -174,12 +176,13 @@ def train_dcgan(batch_size, epochs, image_shape):
     current_batch = 0
 
     # Let's train the DCGAN for n epochs
+    batches_trained = 0
     for epoch in range(epochs):
 
         print("Epoch {:3d}/{}:".format(epoch+1, epochs))
 
         for batch_number in range(number_of_batches):
-
+            batches_trained += 1
             start_time = time.time()
 
             # Get the current batch and normalize the images between -1 and 1
@@ -198,6 +201,7 @@ def train_dcgan(batch_size, epochs, image_shape):
 
             # Add some noise to the labels that will be
             # fed to the discriminator
+            # TODO: not advised by goofellow to not label fake date with y=0
             real_y = (np.ones(current_batch_size) -
                       np.random.random_sample(current_batch_size) * 0.2)
             fake_y = np.random.random_sample(current_batch_size) * 0.2
@@ -218,15 +222,16 @@ def train_dcgan(batch_size, epochs, image_shape):
                                      (1, 1, 100))
 
             # We try to mislead the discriminator by giving the opposite labels
+            # TODO: not advised by goofellow to not label fake date with y=0
             fake_y = (np.ones(current_batch_size * 2) -
                       np.random.random_sample(current_batch_size * 2) * 0.2)
 
             g_loss = gan.train_on_batch(noise, fake_y)
-            adversarial_loss = np.append(adversarial_loss, g_loss)
+            generator_loss = np.append(generator_loss, g_loss)
             batches = np.append(batches, current_batch)
 
-            # Each 50 batches show and save images
-            if((batch_number + 1) % 50 == 0 and
+            # Every 50 batches_trained show and save images
+            if(batches_trained % 50 == 0 and
                current_batch_size == batch_size):
                 save_generated_images(generated_images, epoch, batch_number)
 
@@ -238,19 +243,14 @@ def train_dcgan(batch_size, epochs, image_shape):
 
             current_batch += 1
 
-        # Save and plot images at the end of each epoch
-        save_generated_images(generated_images, epoch, batch_number)
-
-        # Save the model weights each 5 epochs
-        if (epoch + 1) % 2 == 0:
-            discriminator.trainable = True
-            generator.save('models/generator_epoch' + str(epoch+1) + '.hdf5')
-            discriminator.save('models/discriminator_epoch' +
-                               str(epoch+1) + '.hdf5')
+        # Save model every epoch
+        discriminator.trainable = True  # TODO: ???
+        generator.save('models/generator.hdf5')
+        discriminator.save('models/discriminator.hdf5')
 
         # Each epoch update the loss graphs
         plt.figure(1)
-        plt.plot(batches, adversarial_loss, color='green',
+        plt.plot(batches, generator_loss, color='green',
                  label='Generator Loss')
         plt.plot(batches, discriminator_loss, color='blue',
                  label='Discriminator Loss')
