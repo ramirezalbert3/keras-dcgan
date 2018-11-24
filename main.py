@@ -11,26 +11,24 @@ from keras.datasets import mnist
 from dcgan import DCGAN, generate_noise
 
 
-def load_dataset(batch_size):
+def load_dataset(batch_size, max_batches):
     dataset_generator = ImageDataGenerator()
     (x_train, y_train), _ = mnist.load_data()
     # Reduce training data, keep only X batches per epoch
-    batches = 20
-    x_train = x_train[:batch_size*batches, :, :]
-    y_train = y_train[:batch_size*batches]
+    if len(x_train) > batch_size * max_batches:
+        x_train = x_train[:batch_size*max_batches, :, :]
+        y_train = y_train[:batch_size*max_batches]
 
     new_shape = x_train.shape + (1,)
     x_train = x_train.reshape(new_shape)
-    dataset_generator = dataset_generator.flow(
-        x_train, y_train,
-        batch_size=batch_size)
+    dataset_generator = dataset_generator.flow(x_train, y_train,
+                                               batch_size=batch_size)
 
     return dataset_generator, len(x_train)
 
 
 # Displays a figure of the generated images and saves them in as .png image
 def save_generated_images(generated_images, epoch, batch_number):
-
     plt.figure(figsize=(8, 8), num=2)
     gs1 = gridspec.GridSpec(8, 8)
     gs1.update(wspace=0, hspace=0)
@@ -54,12 +52,12 @@ def save_generated_images(generated_images, epoch, batch_number):
 
 
 # Main train function
-def train_dcgan(batch_size, epochs, image_shape):
+def train_dcgan(batch_size, epochs, image_shape, max_batches):
     noise_size = 100
-    # gan = DCGAN(image_shape, noise_size)
-    gan = DCGAN.load_model()
+    gan = DCGAN(image_shape, noise_size)
+    # gan = DCGAN.load_model()
     # Create a dataset Generator with help of keras
-    dataset_generator, dataset_size = load_dataset(batch_size)
+    dataset_generator, dataset_size = load_dataset(batch_size, max_batches)
 
     # 11788 is the total number of images on the bird dataset
     number_of_batches = int(dataset_size / batch_size)
@@ -136,13 +134,17 @@ def train_dcgan(batch_size, epochs, image_shape):
         plt.pause(0.0000000001)
         plt.show()
         plt.savefig('trainingLossPlot.png')
+    print('batches\n', batches)
+    print('generator_loss\n', generator_loss)
+    print('discriminator_loss\n', discriminator_loss)
 
 
 def main():
     batch_size = 64
     image_shape = (28, 28, 1)
     epochs = 10
-    train_dcgan(batch_size, epochs, image_shape)
+    max_batches = 20
+    train_dcgan(batch_size, epochs, image_shape, max_batches)
 
 
 if __name__ == "__main__":
