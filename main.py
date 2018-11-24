@@ -8,7 +8,7 @@ import numpy as np
 from keras.preprocessing.image import ImageDataGenerator
 from keras.datasets import mnist
 
-from dcgan import DCGAN
+from dcgan import DCGAN, generate_noise
 
 
 def load_dataset(batch_size):
@@ -55,8 +55,9 @@ def save_generated_images(generated_images, epoch, batch_number):
 
 # Main train function
 def train_dcgan(batch_size, epochs, image_shape):
-    # TODO: create DCGAN here
-    gan = DCGAN(image_shape)
+    noise_size = 100
+    # gan = DCGAN(image_shape, noise_size)
+    gan = DCGAN.load_model()
     # Create a dataset Generator with help of keras
     dataset_generator, dataset_size = load_dataset(batch_size)
 
@@ -85,48 +86,24 @@ def train_dcgan(batch_size, epochs, image_shape):
             start_time = time.time()
 
             # Get the current batch and normalize the images between -1 and 1
+            # TODO: class that handles data (loading, batching, normalizing, etc)
             real_images, _ = dataset_generator.next()
 
             # The last batch is smaller than the other ones, so we need to
             # take that into account
             current_batch_size = real_images.shape[0]
 
-            # Generate noise
-            noise = np.random.normal(0, 1,
-                                     size=(current_batch_size,) + (1, 1, 100))
-
             # Generate images
-            generated_images = gan.generator.predict(noise)
+            noise = generate_noise(current_batch_size, noise_size)
+            generated_images = gan.generate(noise)
 
-            # Add some noise to the labels that will be
-            # fed to the discriminator
-            # TODO: not advised by goofellow to not label fake date with y=0
-            real_y = (np.ones(current_batch_size) -
-                      np.random.random_sample(current_batch_size) * 0.2)
-            fake_y = np.random.random_sample(current_batch_size) * 0.2
-
-            # Let's train the discriminator
-            gan.discriminator.trainable = True
-
-            d_loss = gan.discriminator.train_on_batch(real_images, real_y)
-            d_loss += gan.discriminator.train_on_batch(generated_images, fake_y)
-
+            d_loss = gan.train_discriminator(real_images, generated_images)
             discriminator_loss = np.append(discriminator_loss, d_loss)
 
-            # Now it's time to train the generator
-            gan.discriminator.trainable = False
-
-            noise = np.random.normal(0, 1,
-                                     size=(current_batch_size * 2,) +
-                                     (1, 1, 100))
-
-            # We try to mislead the discriminator by giving the opposite labels
-            # TODO: not advised by goofellow to not label fake date with y=0
-            fake_y = (np.ones(current_batch_size * 2) -
-                      np.random.random_sample(current_batch_size * 2) * 0.2)
-
-            g_loss = gan.gan.train_on_batch(noise, fake_y)
+            noise = generate_noise(2*current_batch_size, noise_size)
+            g_loss = gan.train_generator(noise)
             generator_loss = np.append(generator_loss, g_loss)
+
             batches = np.append(batches, current_batch)
 
             # Every 50 batches_trained show and save images
@@ -143,9 +120,7 @@ def train_dcgan(batch_size, epochs, image_shape):
             current_batch += 1
 
         # Save model every epoch
-        gan.discriminator.trainable = True  # TODO: ???
-        gan.generator.save('models/generator.hdf5')
-        gan.discriminator.save('models/discriminator.hdf5')
+        gan.save_model()
 
         # Each epoch update the loss graphs
         plt.figure(1)
