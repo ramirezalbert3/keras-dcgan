@@ -62,11 +62,9 @@ def train_dcgan(batch_size, epochs, image_shape, max_batches):
     # 11788 is the total number of images on the bird dataset
     number_of_batches = int(dataset_size / batch_size)
 
-    # Variables that will be used to plot the losses from the discriminator and
-    # the adversarial models
-    generator_loss = np.empty(shape=1)
-    discriminator_loss = np.empty(shape=1)
-    batches = np.empty(shape=1)
+    generator_loss = []
+    discriminator_loss = []
+    batches = []
 
     # Allow plot updates inside for loop
     plt.ion()
@@ -96,13 +94,13 @@ def train_dcgan(batch_size, epochs, image_shape, max_batches):
             generated_images = gan.generate(noise)
 
             d_loss = gan.train_discriminator(real_images, generated_images)
-            discriminator_loss = np.append(discriminator_loss, d_loss)
+            discriminator_loss.append(d_loss)
 
             noise = generate_noise(2*current_batch_size, noise_size)
             g_loss = gan.train_generator(noise)
-            generator_loss = np.append(generator_loss, g_loss)
+            generator_loss.append(g_loss)
 
-            batches = np.append(batches, current_batch)
+            batches.append(current_batch)
 
             # Every 50 batches_trained show and save images
             if(batches_trained % 50 == 0 and
@@ -134,16 +132,13 @@ def train_dcgan(batch_size, epochs, image_shape, max_batches):
         plt.pause(0.0000000001)
         plt.show()
         plt.savefig('trainingLossPlot.png')
-    print('batches\n', batches)
-    print('generator_loss\n', generator_loss)
-    print('discriminator_loss\n', discriminator_loss)
 
 
 def main():
     batch_size = 64
     image_shape = (28, 28, 1)
-    epochs = 10
-    max_batches = 20
+    epochs = 20
+    max_batches = 50
     train_dcgan(batch_size, epochs, image_shape, max_batches)
 
 
