@@ -40,7 +40,7 @@ def construct_generator(img_shape: tuple, noise_size: int, conv_filters: list, c
 
     # HACK: this has a bigger effect than expected on looks of generated images
     #       64 gives a better result than 256, and 128 a better result than 64
-    conv_filters = [512, 128]
+    conv_filters = [128, 512]
 
     # TODO: less hard-coding for conv_conf, its a lot better now however
     #       Every deconvolution (at least with current hardcoded stride/padding) doubles size
