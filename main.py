@@ -1,13 +1,11 @@
 import time
 import matplotlib
-matplotlib.use('TkAgg')  # MacOS hack
+matplotlib.use('TkAgg')  # HACK: MacOS specific, try bokeh instead of matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
-
 from keras.preprocessing.image import ImageDataGenerator
 from keras.datasets import mnist
-
 from dcgan import DCGAN, generate_noise
 
 
@@ -47,7 +45,7 @@ def save_generated_images(generated_images, epoch, batch_number):
         epoch + 1) + '_batch' + str(batch_number + 1) + '.png'
 
     plt.savefig(save_name, bbox_inches='tight', pad_inches=0)
-    plt.pause(3)
+    plt.pause(0.0000000001)
     plt.show()
 
 
@@ -137,7 +135,7 @@ def train_dcgan(batch_size, epochs, image_shape, max_batches):
 def main():
     batch_size = 64
     image_shape = (28, 28, 1)
-    epochs = 20
+    epochs = 10
     max_batches = 50
     train_dcgan(batch_size, epochs, image_shape, max_batches)
 

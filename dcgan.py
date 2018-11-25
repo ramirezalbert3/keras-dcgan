@@ -37,9 +37,13 @@ def construct_generator(img_shape: tuple, noise_size: int, conv_filters: list, c
     assert (len(img_shape) == 3)  # assert W, H, Channels
     base = img_shape[0]
     used_filters = []
+
+    # HACK: this has a bigger effect than expected on looks of generated images
+    #       64 gives a better result than 256, and 128 a better result than 64
+    conv_filters = [512, 128]
+
     # TODO: less hard-coding for conv_conf, its a lot better now however
     #       Every deconvolution (at least with current hardcoded stride/padding) doubles size
-
     # Find how many convolutions we can apply, and where do we start from
     while base % 2 == 0:
         used_filters.append(conv_filters.pop())
@@ -80,6 +84,7 @@ def generate_noise(batch_size: int, noise_size: int):
     # TODO: figure out who should be generating this noise (is it DCGAN because of noise size?)
     return np.random.normal(0, 1, size=(batch_size,) + (1, 1, noise_size))
 
+
 class DCGAN:
     def __init__(self, img_shape: tuple, noise_size: int = 100,
                  discriminator: Sequential = None, generator: Sequential = None,
@@ -92,12 +97,12 @@ class DCGAN:
                          'data_format': 'channels_last',
                          'kernel_initializer': 'glorot_uniform'}
         else:
-            print('Use at own risk, probably not ready')
+            print('Use at own risk, probably not ready')  # TODO: log warning
 
         if conv_filters is None:
             conv_filters = [64, 128, 256, 512]
         else:
-            print('Use at own risk, probably not ready')
+            print('Use at own risk, probably not ready')  # TODO: log warning
 
         if generator is None:
             self._generator = construct_generator(img_shape, noise_size, conv_filters, conv_conf)
@@ -108,6 +113,13 @@ class DCGAN:
             self._discriminator = construct_discriminator(img_shape, conv_filters, conv_conf)
         else:
             self._discriminator = discriminator
+
+        def to_file(s, name):
+            with open('models/{}_summary.txt'.format(name), 'w') as f:
+                print(s, file=f)
+
+        to_file(self._discriminator.to_yaml(), 'discriminator')
+        to_file(self._generator.to_yaml(), 'generator')
 
         self._gan = Sequential()
         self._discriminator.trainable = False
@@ -125,6 +137,7 @@ class DCGAN:
         """ Train discriminator by feeding real data with y=aprox(1) and fake data with y=0 """
         # TODO: Goodfellow in NIPS2016 advises we label real data with around 0.9 and fake with 0
         #       but got better results with this approach
+        #       DOUBLE CHECK: because there is another issue with generator layers that appears to be the cause
         real_y = np.ones(len(real_images)) - np.random.random_sample(len(real_images)) * 0.2
         generated_y = np.random.random_sample(len(generated_images)) * 0.2
         self._discriminator.trainable = True
